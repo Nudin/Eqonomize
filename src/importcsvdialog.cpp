@@ -232,6 +232,11 @@ ImportCSVDialog::ImportCSVDialog(bool extra_parameters, Budget *budg, QWidget *p
 	layout3->addWidget(valueAC1Edit, row, 4);
 	row++;
 
+	valueAC1bEdit = new QComboBox(page3);
+	valueAC1bEdit->setEditable(false);
+	layout3->addWidget(valueAC1bEdit, row, 4);
+	row++;
+
 	AC2Label = new QLabel(tr("From account:"), page3);
 	layout3->addWidget(AC2Label, row, 0);
 	AC2Group = new QButtonGroup(this);
@@ -365,6 +370,7 @@ ImportCSVDialog::ImportCSVDialog(bool extra_parameters, Budget *budg, QWidget *p
 	connect(valueDateButton, SIGNAL(toggled(bool)), valueDateEdit, SLOT(setEnabled(bool)));
 	connect(columnAC1Button, SIGNAL(toggled(bool)), columnAC1Edit, SLOT(setEnabled(bool)));
 	connect(valueAC1Button, SIGNAL(toggled(bool)), valueAC1Edit, SLOT(setEnabled(bool)));
+	connect(valueAC1Button, SIGNAL(toggled(bool)), valueAC1bEdit, SLOT(setEnabled(bool)));
 	connect(columnAC2Button, SIGNAL(toggled(bool)), columnAC2Edit, SLOT(setEnabled(bool)));
 	connect(valueAC2Button, SIGNAL(toggled(bool)), valueAC2Edit, SLOT(setEnabled(bool)));
 	connect(columnTagsButton, SIGNAL(toggled(bool)), columnTagsEdit, SLOT(setEnabled(bool)));
@@ -527,15 +533,23 @@ void ImportCSVDialog::typeChanged(int id) {
 			break;
 		}
 		case 3: {
-			typeDescriptionLabel->setText(tr("Imports data as expenses and incomes. Costs have negative value. Value and category are both required columns."));
+			typeDescriptionLabel->setText(tr("Imports data as expenses and incomes. Costs have negative value. Value is the only required column."));
 			columnAC1Button->setChecked(true);
 			columnAC1Edit->setEnabled(true);
-			valueAC1Edit->setEnabled(false);
-			valueAC1Button->setEnabled(false);
+			valueAC1Edit->setEnabled(true);
+			valueAC1Button->setEnabled(true);
 			valueLabel->setText(tr("Value:"));
 			AC1Label->setText(tr("Category:"));
 			AC2Label->setText(tr("Account:"));
 			if(b_extra) payeeLabel->setText(tr("Payee/payer:"));
+			for(AccountList<IncomesAccount*>::const_iterator it = budget->incomesAccounts.constBegin(); it != budget->incomesAccounts.constEnd(); ++it) {
+				IncomesAccount *ia = *it;
+				valueAC1Edit->addItem(ia->name(), qVariantFromValue((void*) *it));
+			}
+			for(AccountList<ExpensesAccount*>::const_iterator it = budget->expensesAccounts.constBegin(); it != budget->expensesAccounts.constEnd(); ++it) {
+				ExpensesAccount *ea = *it;
+				valueAC1bEdit->addItem(ea->name(), qVariantFromValue((void*) *it));
+			}
 			break;
 		}
 		case 4: {
@@ -889,7 +903,7 @@ bool ImportCSVDialog::import(bool test, csv_info *ci) {
 	if(!test && b_extra && quantity_c < 0) quantity = valueQuantityEdit->value();
 	if(!test && tags_c < 0) tags = valueTagsEdit->text();
 	QMap<QString, Account*> eaccounts, iaccounts, aaccounts;
-	Account *ac1 = NULL, *ac2 = NULL;
+	Account *ac1 = NULL, *ac1b = NULL, *ac2 = NULL;
 	if(!test && (AC1_c >= 0 || AC2_c >= 0)) {
 		for(AccountList<ExpensesAccount*>::const_iterator it = budget->expensesAccounts.constBegin(); it != budget->expensesAccounts.constEnd(); ++it) {
 			ExpensesAccount *ea = *it;
@@ -908,6 +922,7 @@ bool ImportCSVDialog::import(bool test, csv_info *ci) {
 	}
 	if(AC1_c < 0) {
 		if(valueAC1Edit->currentData().isValid()) ac1 = (Account*) valueAC1Edit->currentData().value<void*>();
+		if(valueAC1bEdit->currentData().isValid()) ac1b = (Account*) valueAC1bEdit->currentData().value<void*>();
 	}
 	if(AC2_c < 0) {
 		if(valueAC2Edit->currentData().isValid()) ac2 = (Account*) valueAC2Edit->currentData().value<void*>();
